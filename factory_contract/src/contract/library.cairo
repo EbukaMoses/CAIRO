@@ -1,17 +1,9 @@
 use starknet::ContractAddress;
-use starknet::storage::Array;
+// use starknet::storage::Array;
+use crate::types::Book;
 
-#[derive(Copy, Drop, Serde, starknet::Store)]
-struct Book{
-    book_id: u8,
-    book_name: felt252,
-    author: felt252,
-    current_holder: ContractAddress,
-    borrowed: bool,
-    deleted: bool,
-}
-
-pub trait IBook<TContractState>{
+#[starknet::interface]
+pub trait ILabrary<TContractState>{
     fn add_book(ref self: TContractState, book_name: felt252, author: felt252);
     fn remove_book(ref self: TContractState, book_id: u8);
     fn borrow_book(ref self: TContractState, book_id: u8);
@@ -24,15 +16,15 @@ pub trait IBook<TContractState>{
 }
 
 #[starknet::contract]
-pub mod Book{
-
-    use super::{Book,  IBook};
-    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess, StoragepathEntry};
+pub mod Library{
+    use starknet::syscalls::get_execution_info_syscall;
+    use super::{Book, ILabrary, ContractAddress};
+    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePathEntry};
     use starknet::get_caller_address;
 
     #[storage]
     struct Storage{
-        book: Map::<u8, Book>,
+        books: Map::<u8, Book>,
         librarian: ContractAddress,
         book_count: u8,
     }
@@ -76,7 +68,7 @@ pub mod Book{
     }
 
     #[abi(embed_v0)]
-    impl BookImpl of IBook<ContractState>{
+    impl LibraryImpl of ILabrary<ContractState>{
 
         fn add_book(ref self: ContractState, book_name: felt252, author: felt252){
             let caller = get_caller_address();
@@ -106,7 +98,7 @@ pub mod Book{
         fn remove_book(ref self: ContractState, book_id: u8){
             let caller = get_caller_address();
             let librarian = self.librarian.read();
-            assert(caller == librarian, " Caller not permitted");
+            assert(caller == librarian, "Caller not permitted");
 
             let mut book = self.books.entry(book_id).read();
             assert(book.author != 0, "Book does not exit");
