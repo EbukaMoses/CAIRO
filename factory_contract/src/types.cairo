@@ -9,8 +9,15 @@ pub struct Book{
     pub current_holder: ContractAddress,
     pub borrowed: bool,
     pub deleted: bool,
+    pub weight: u256,
 }
 
-pub struct user{
-    addresss: ContractAddress,
+#[derive(Copy, Drop, Serde, starknet::Store, Default, PartialEq)]
+pub struct User{
+    pub id: u8,
+    // pub address: ContractAddress,
+    pub fname: felt252,
+    pub lname: felt252,
+    pub total_weight: u256,
+    pub used_weight: u256,
 }

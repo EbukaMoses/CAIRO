@@ -3,8 +3,8 @@ use starknet::ContractAddress;
 use crate::types::Book;
 
 #[starknet::interface]
-pub trait ILabrary<TContractState>{
-    fn add_book(ref self: TContractState, book_name: felt252, author: felt252);
+pub trait ILibrary<TContractState>{
+    fn add_book(ref self: TContractState, book_name: felt252, author: felt252, weight: u256);
     fn remove_book(ref self: TContractState, book_id: u8);
     fn borrow_book(ref self: TContractState, book_id: u8);
     fn return_book(ref self: TContractState, book_id: u8);
@@ -17,9 +17,9 @@ pub trait ILabrary<TContractState>{
 
 #[starknet::contract]
 pub mod Library{
-    use starknet::syscalls::get_execution_info_syscall;
-    use super::{Book, ILabrary, ContractAddress};
-    use starknet::storage::{Map, StorageMapReadAccess, StorageMapWriteAccess, StoragePathEntry};
+    // use starknet::syscalls::get_execution_info_syscall;
+    use super::{Book, ILibrary, ContractAddress};
+    use starknet::storage::{Map, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess};
     use starknet::get_caller_address;
 
     #[storage]
@@ -68,23 +68,26 @@ pub mod Library{
     }
 
     #[abi(embed_v0)]
-    impl LibraryImpl of ILabrary<ContractState>{
+    impl LibraryImpl of ILibrary<ContractState>{
 
-        fn add_book(ref self: ContractState, book_name: felt252, author: felt252){
+        fn add_book(ref self: ContractState, book_name: felt252, author: felt252, weight: u256){
             let caller = get_caller_address();
-            assert(caller == self.librarian.read(), 'Only librarian can add books');
-            let new_book_id = self.book_count.read() + 1;
+            let librarian = self.librarian.read();
+            assert(caller == librarian, 'Only librarian can add books');
+            let book_id = self.book_count.read() + 1;
 
             let new_book = Book{
-                book_id: new_book_id, 
-                book_name, author, 
-                current_holder: ContractAddress, 
+                book_id: book_id, 
+                book_name,
+                author, 
+                current_holder: librarian, 
                 borrowed: false,
-                deleted: false
+                deleted: false,
+                weight,
             };
 
             self.books.entry(book_id).write(new_book); // or self.books.write(book_id, new_book) or self.book.write(book_id, Book{book_id, book_name, author, current_holder: ContractAddress::ZERO, borrowed: false});
-            self.book_count.write(new_book_id);
+            self.book_count.write(book_id);
 
             self.emit(
                 BookAdded{
@@ -98,11 +101,11 @@ pub mod Library{
         fn remove_book(ref self: ContractState, book_id: u8){
             let caller = get_caller_address();
             let librarian = self.librarian.read();
-            assert(caller == librarian, "Caller not permitted");
+            assert(caller != librarian, 'Caller not permitted');
 
             let mut book = self.books.entry(book_id).read();
-            assert(book.author != 0, "Book does not exit");
-            assert(book.current_holder == self.librarian, "Book not available");
+            assert(book.author != 0, 'Book does not exit');
+            assert(book.current_holder == librarian, 'Book not available');
 
             book.deleted = true;
 
@@ -113,16 +116,16 @@ pub mod Library{
                     book_id,
                 }
             )
-        };
+        }
 
         fn borrow_book(ref self: ContractState, book_id: u8){
             let borrower = get_caller_address();
             
-            let mut book = self.books.enttry(book_id).read();
+            let mut book = self.books.entry(book_id).read();
 
-            assert(!book.deleted, "Book has been deleted");
-            assert(book.name != 0, "Book does not exit");
-            assert(book.borrowed == false, "Book has being Borrowed");
+            assert(!book.deleted, 'Book has been deleted');
+            assert(book.book_name != 0, 'Book does not exit');
+            assert(!book.borrowed, 'Book has being Borrowed');
 
             book.current_holder = borrower;
             book.borrowed = true;
@@ -136,14 +139,14 @@ pub mod Library{
                 }
             )
 
-        };
+        }
 
         fn return_book(ref self: ContractState, book_id: u8){
             let caller =  get_caller_address();
             let mut book = self.books.entry(book_id).read();
 
-            assert(book.name != 0, "Book does not exit");
-            assert(book.current_holder == caller, "Not current holder");
+            assert(book.book_name != 0, 'Book does not exit');
+            assert(book.current_holder == caller, 'Not current holder');
 
             book.current_holder = self.librarian.read();
             book.borrowed = false;
@@ -158,34 +161,34 @@ pub mod Library{
                 }
             )
 
-        };
+        }
 
         fn is_borrowed(self: @ContractState, book_id: u8) -> bool{
             let book = self.books.entry(book_id).read();
 
             book.borrowed
-        };
+        }
 
 
         fn get_current_book_holder(self: @ContractState, book_id: u8) -> ContractAddress{
             let book = self.books.entry(book_id).read();
 
             book.current_holder
-        };
+        }
 
         fn get_book(self: @ContractState, book_id: u8) -> Book{
             let book = self.books.entry(book_id).read();
 
-            assert(book.book_name != 0, Book doesnt exist);
-            assert(!book.deleted,  "Book deleted");
+            assert(book.book_name != 0, 'Book doesnt exist');
+            assert(!book.deleted,  'Book deleted');
 
             book
 
-        };
+        }
 
 
         fn get_all_books(self: @ContractState) -> Array<Book>{
-            let book_array = array![];
+            let mut book_array = array![];
 
             for i in 1..=self.book_count.read() {
                 let current_book = self.books.entry(i).read();
@@ -197,7 +200,7 @@ pub mod Library{
             }
 
             book_array
-        };
+        }
 
     }
 }
