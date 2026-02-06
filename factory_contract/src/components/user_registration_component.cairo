@@ -84,4 +84,14 @@ pub mod RegistryComponent{
         }
 
     }
+
+    #[generate_trait]
+    impl InterFunctions<
+    TContractState, +HasComponent<TContractState>
+    > of InternalTrait<TContractState>{
+        fn initializer(ref self: ComponentState<TContractState>, user_weight: u256){{
+            self.user_weight.write(user_weight);
+            self.user_count.write(0);
+        }
+    }
 } 

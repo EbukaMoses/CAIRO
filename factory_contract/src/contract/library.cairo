@@ -21,13 +21,18 @@ pub mod Library{
     use super::{Book, ILibrary, ContractAddress};
     use starknet::storage::{Map, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess};
     use starknet::get_caller_address;
+    use crate::components::user_registration_component::RegistryComponent;
 
     #[storage]
     struct Storage{
         books: Map::<u8, Book>,
         librarian: ContractAddress,
         book_count: u8,
+        #[substorage(v0)]
+        registry: RegistryComponent::Storage,
     }
+
+    component!(path: RegistryComponent, storage: registry, event: RegistryEvent);
 
     #[event]
     #[derive(Drop, starknet::Event)]
@@ -36,6 +41,8 @@ pub mod Library{
         BookRemoved: BookRemoved,
         BookBorrowed: BookBorrowed,
         BookReturned: BookReturned,
+        #[flat]
+        RegistryEvent: RegistryComponent::Event,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -66,6 +73,10 @@ pub mod Library{
         self.librarian.write(librarian);
         self.book_count.write(0);
     }
+
+    impl RegistryImpl = RegistryComponent::RegistryComponentImpl<ContractState>;
+
+    impl InternalImpl = RegistryComponent::InternalImpl<ContractState>;
 
     #[abi(embed_v0)]
     impl LibraryImpl of ILibrary<ContractState>{
