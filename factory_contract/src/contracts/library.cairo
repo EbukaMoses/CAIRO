@@ -69,14 +69,15 @@ pub mod Library{
     }
 
     #[constructor]
-    fn constructor(ref self: ContractState, librarian: ContractAddress){
+    fn constructor(ref self: ContractState, librarian: ContractAddress, user_weight: u256){
         self.librarian.write(librarian);
         self.book_count.write(0);
+        self.registry.initializer(user_weight);
     }
 
-    impl RegistryImpl = RegistryComponent::RegistryComponentImpl<ContractState>;
+    impl RegistryImpl = RegistryComponent::RegistryImpl<ContractState>;
 
-    impl InternalImpl = RegistryComponent::InternalImpl<ContractState>;
+    impl RegistryInternalImpl = RegistryComponent::InternalFunctions<ContractState>;
 
     #[abi(embed_v0)]
     impl LibraryImpl of ILibrary<ContractState>{
@@ -131,6 +132,15 @@ pub mod Library{
 
         fn borrow_book(ref self: ContractState, book_id: u8){
             let borrower = get_caller_address();
+            let user_registered = self.registry.is_user_registered();
+            assert(user_registered, 'User not registered');
+
+            // TODO: assert that user has enough weight
+            // TODO: if user has enough weight, deduct the weight from the user
+            // TODO: if user does not have enough weight, revert the transaction
+            // TODO: emit an event for the user consuming weight
+            // TODO: emit an event for the book being borrowed
+            // TODO: emit an event for the book being borrowed
             
             let mut book = self.books.entry(book_id).read();
 

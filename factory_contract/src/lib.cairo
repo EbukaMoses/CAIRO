@@ -2,7 +2,7 @@ pub mod contract{
     pub mod library;
 }
 
-pub mod component {
+pub mod components {
     pub mod user_registration_component;
 }
 

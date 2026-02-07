@@ -1,16 +1,19 @@
+use starknet::ContractAddress;
+
 #[starknet::interface]
 pub trait IRegistry<TContractState>{
     fn register_use(ref self: TContractState, user_fname: felt252, user_lname: felt252);
-    fn is_user_registered(self: @TContractState, user_id: u8) -> bool;  
+    fn is_user_registered(self: @TContractState)-> bool;  
     fn blacklist_user(ref self: TContractState, user_id: u8);
+    fn get_user_weight(self: @TContractState, address: ContractAddress) -> u256;
+    fn use_weight(ref self: TContractState, address: ContractAddress, weight: u256);
 }
 
 #[starknet::component]
 pub mod RegistryComponent{
-
-
     use starknet::{ContractAddress, get_caller_address, get_block_timestamp};
     use starknet::storage::{Map, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry, Vec, MutableVecTrait, VecTrait};
+    use openzeppelin::token::erc20::{ERC20Component, ERC20HooksEmptyImpl};
     use crate::types::User;
     use super::IRegistry;
    
@@ -26,6 +29,7 @@ pub mod RegistryComponent{
     pub enum Event{
         UserRegisterd: UserRegisterd,
         UserBlacklisted: UserBlacklisted,
+        ERC20Event: ERC20Component::Event,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -39,6 +43,8 @@ pub mod RegistryComponent{
         user: ContractAddress,
         timestamp: u64,
     }
+
+    //TODO EVENT FOR USER CONSUMING WEIGHT
 
     #[embeddable_as(RegistryImpl)]
     impl RegistryComponentImpl<
@@ -68,7 +74,7 @@ pub mod RegistryComponent{
             )
          }
 
-        fn is_user_registered(self: @ComponentState<TContractState>, user_id: u8) -> bool {
+        fn is_user_registered(self: @ComponentState<TContractState>) -> bool {
             let user_address = get_caller_address();
             let user = self.users.entry(user_address).read();
 
@@ -83,13 +89,29 @@ pub mod RegistryComponent{
             
         }
 
+        fn get_user_weight(self: @ComponentState<TContractState>, address: ContractAddress ) -> u256 {
+            let user = self.users.entry(address).read();
+            // if user == Default::default(){
+            //     0
+            // }else{
+            //     user.total_weight
+            // }
+            user.total_weight - user.used_weight
+        }
+
+        fn use_weight(ref self: ComponentState<TContractState>, address: ContractAddress, weight: u256){
+            let mut user = self.users.entry(address).read();
+            user.used_weight += weight;
+            self.users.entry(address).write(user);
+        }
+
     }
 
     #[generate_trait]
-    impl InterFunctions<
+    pub impl InternalFunctions<
     TContractState, +HasComponent<TContractState>
     > of InternalTrait<TContractState>{
-        fn initializer(ref self: ComponentState<TContractState>, user_weight: u256){{
+        fn initializer(ref self: ComponentState<TContractState>, user_weight: u256){
             self.user_weight.write(user_weight);
             self.user_count.write(0);
         }
