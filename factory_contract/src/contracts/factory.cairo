@@ -8,10 +8,10 @@ pub trait IFactory<TContractState>{
 
 #[starknet::contract]
 pub mod Factory{
+    use starknet::SyscallResultTrait;
     use super::{IFactory, ContractAddress};
-    use starknet::storage::{Vec, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess, VecTrait, MutableVecTrait};
-    use crate::components::user_registration_component::RegistryComponent;
-    use starknet::syscalls::{deplo_syscall}
+    use starknet::storage::{Vec, StoragePointerReadAccess, MutableVecTrait};
+    use starknet::syscalls::deploy_syscall;
     use starknet::{ClassHash, get_block_timestamp};
 
     #[storage]
@@ -35,7 +35,7 @@ pub mod Factory{
 
     #[constructor]
     fn constructor(ref self: ContractState){
-        self.libraries.initializer();
+        // self.libraries.initializer();
     }
 
     #[abi(embed_v0)]

@@ -12,6 +12,7 @@ pub trait ILibrary<TContractState>{
     fn get_book(self: @TContractState, book_id: u8) -> Book;
     fn get_current_book_holder(self: @TContractState, book_id: u8) -> ContractAddress;
     fn get_all_books(self: @TContractState) -> Array<Book>;
+    fn close_down_library(ref self: TContractState);
     
 }
 
@@ -20,8 +21,9 @@ pub mod Library{
     // use starknet::syscalls::get_execution_info_syscall;
     use super::{Book, ILibrary, ContractAddress};
     use starknet::storage::{Map, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess};
-    use starknet::get_caller_address;
+    use starknet::{get_caller_address, get_contract_address};
     use crate::components::user_registration_component::RegistryComponent;
+    use crate::contracts::factory::{IFactoryDispatcher, IFactoryDispatcherTrait};
 
     #[storage]
     struct Storage{
@@ -30,6 +32,7 @@ pub mod Library{
         book_count: u8,
         #[substorage(v0)]
         registry: RegistryComponent::Storage,
+        factory: ContractAddress,
     }
 
     component!(path: RegistryComponent, storage: registry, event: RegistryEvent);
@@ -221,6 +224,12 @@ pub mod Library{
             }
 
             book_array
+        }
+
+        fn close_down_library(ref self: ContractState){
+            let library_address = get_contract_address();
+            let factory_dispatcher = IFactoryDispatcher { contract_address: self.factory.read() };
+            factory_dispatcher.close_library(library_address);
         }
 
     }

@@ -12,7 +12,7 @@ pub trait IRegistry<TContractState>{
 #[starknet::component]
 pub mod RegistryComponent{
     use starknet::{ContractAddress, get_caller_address, get_block_timestamp};
-    use starknet::storage::{Map, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry, Vec, MutableVecTrait, VecTrait};
+    use starknet::storage::{Map, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry};
     use openzeppelin::token::erc20::{ERC20Component, ERC20HooksEmptyImpl};
     use crate::types::User;
     use super::IRegistry;
